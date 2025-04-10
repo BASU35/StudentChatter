@@ -33,15 +33,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Handle WebSocket connections
   wss.on('connection', (ws: SocketClient) => {
     console.log('Client connected');
+    let isAuthenticated = false;
+    
+    // Set a timeout to check authentication
+    const authTimeout = setTimeout(() => {
+      if (!isAuthenticated) {
+        console.log('Client disconnected: Authentication timeout');
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Authentication required'
+        }));
+        ws.close();
+      }
+    }, 10000); // 10 seconds to authenticate
 
     ws.on('message', async (message: string) => {
       try {
         const data = JSON.parse(message);
+        console.log('Received WebSocket message type:', data.type);
+        
+        if (data.type === 'auth') {
+          await handleAuth(ws, data.userId);
+          isAuthenticated = true;
+          clearTimeout(authTimeout);
+          console.log('Client authenticated:', data.userId);
+          
+          // Send successful authentication response
+          ws.send(JSON.stringify({
+            type: 'auth-success',
+            user: await storage.getUser(data.userId)
+          }));
+          return;
+        }
+        
+        // Require authentication for all other message types
+        if (!isAuthenticated && ws.userId === undefined) {
+          console.log('Unauthenticated request:', data.type);
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Authentication required'
+          }));
+          return;
+        }
         
         switch (data.type) {
-          case 'auth':
-            await handleAuth(ws, data.userId);
-            break;
           case 'join-waiting':
             await handleJoinWaiting(ws, data.userId);
             break;
@@ -243,15 +278,7 @@ async function handleAuth(ws: SocketClient, userId: number) {
   // Update user status
   await storage.updateUserOnlineStatus(userId, true);
   
-  ws.send(JSON.stringify({
-    type: 'auth-success',
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      university: user.university
-    }
-  }));
+  // Auth success response is now sent in the message handler
 }
 
 async function handleJoinWaiting(ws: SocketClient, userId: number) {

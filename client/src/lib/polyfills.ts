@@ -65,4 +65,14 @@ if (typeof window !== 'undefined') {
       inspect: (obj) => JSON.stringify(obj)
     };
   }
+  
+  // Check WebRTC support
+  setTimeout(() => {
+    console.log("WebRTC support check:", {
+      RTCPeerConnection: typeof RTCPeerConnection !== 'undefined',
+      RTCSessionDescription: typeof RTCSessionDescription !== 'undefined',
+      RTCIceCandidate: typeof RTCIceCandidate !== 'undefined',
+      mediaDevices: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    });
+  }, 1000);
 }
