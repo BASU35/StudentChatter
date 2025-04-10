@@ -418,16 +418,6 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
             
             <button 
               className="flex flex-col items-center text-white opacity-80 hover:opacity-100 focus:outline-none transition-opacity"
-              onClick={toggleVideo}
-            >
-              <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center mb-1">
-                {isVideoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-              </div>
-              <span className="text-xs">{isVideoEnabled ? "Hide Video" : "Show Video"}</span>
-            </button>
-            
-            <button 
-              className="flex flex-col items-center text-white opacity-80 hover:opacity-100 focus:outline-none transition-opacity"
               onClick={toggleChat}
             >
               <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center mb-1">
