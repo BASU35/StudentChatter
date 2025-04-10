@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 // Email validation helpers
 export function isEducationalEmail(email: string): boolean {
   // Common educational domains
-  const eduDomains = ['.edu', '.ac.uk', '.edu.au', '.ac.nz', '.edu.sg', '.ac.za'];
+  const eduDomains = ['.edu', '.ac.uk', '.edu.au', '.ac.nz', '.edu.sg', '.ac.za', 'dtu.ac.in'];
   const emailLower = email.toLowerCase();
   
   return eduDomains.some(domain => emailLower.endsWith(domain));

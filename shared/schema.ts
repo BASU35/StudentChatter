@@ -64,7 +64,7 @@ export const loginSchema = z.object({
 export const emailVerificationSchema = z.object({
   email: z.string().email().refine(email => {
     // Common educational domains
-    const eduDomains = ['.edu', '.ac.uk', '.edu.au', '.ac.nz', '.edu.sg', '.ac.za'];
+    const eduDomains = ['.edu', '.ac.uk', '.edu.au', '.ac.nz', '.edu.sg', '.ac.za', 'dtu.ac.in'];
     return eduDomains.some(domain => email.toLowerCase().endsWith(domain));
   }, { message: 'Must be a valid educational email address' })
 });
