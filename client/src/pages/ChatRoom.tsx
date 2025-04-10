@@ -8,7 +8,7 @@ import ChatSidebar from "@/components/ChatSidebar";
 import ReportModal from "@/components/ReportModal";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Mic, MicOff, Video, VideoOff, User, AlertTriangle, LogOut } from "lucide-react";
-import { setupPeerConnection, closePeerConnection } from "@/lib/webrtc";
+import { initPeer, callPeer, answerCall, cleanupPeer, sendData, connectToPeer } from "@/lib/peerConnection";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +25,7 @@ interface ChatRoomProps {
 export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
   const { toast } = useToast();
   const { socket, socketStatus } = useSocket();
-  const { localStream, remoteStream, isAudioEnabled, isVideoEnabled, toggleAudio, toggleVideo } = useMedia();
+  const { localStream, remoteStream, isAudioEnabled, isVideoEnabled, toggleAudio, toggleVideo, setRemoteStream } = useMedia();
   
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -50,10 +50,8 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
     setMessages([]);
     setCurrentPartner(null);
     
-    // Close any existing peer connection
-    if (peerConnection) {
-      closePeerConnection(peerConnection);
-    }
+    // Clean up any existing peer connections
+    cleanupPeer();
     
     setIsConnecting(true);
     
@@ -81,10 +79,8 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
       return;
     }
     
-    // Close any existing peer connection
-    if (peerConnection) {
-      closePeerConnection(peerConnection);
-    }
+    // Clean up any existing peer connections
+    cleanupPeer();
     
     setIsConnecting(true);
     setIsConnected(false);
@@ -101,10 +97,8 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
   // Handle logout
   const handleLogout = async () => {
     try {
-      // Close peer connection
-      if (peerConnection) {
-        closePeerConnection(peerConnection);
-      }
+      // Clean up any existing peer connections
+      cleanupPeer();
       
       // Send disconnect message to server
       if (socket && socketStatus === "connected") {
@@ -144,6 +138,32 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
     setIsReportModalOpen(true);
   };
   
+  // Initialize PeerJS when user logs in
+  useEffect(() => {
+    if (user && user.id) {
+      // Initialize PeerJS with user ID
+      const peer = initPeer(user.id.toString(), 
+        () => {
+          console.log("PeerJS connection initialized");
+        },
+        (error) => {
+          console.error("PeerJS error:", error);
+          toast({
+            title: "Video connection error",
+            description: "Unable to initialize video chat. Please check your permissions.",
+            variant: "destructive",
+          });
+        }
+      );
+      
+      setPeerConnection(peer);
+      
+      return () => {
+        cleanupPeer();
+      };
+    }
+  }, [user, toast]);
+
   // Handle WebSocket messages
   useEffect(() => {
     if (!socket) return;
@@ -177,20 +197,34 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
               }
             ]);
             
-            // Set up WebRTC peer connection
-            const peer = setupPeerConnection(
-              socket,
-              data.roomId,
-              user.id,
-              localStream,
-              (stream) => {
-                // Remote stream received
-                console.log("Remote stream received", stream);
-              },
-              true // Initiator if we're the one who received the match event first
-            );
-            
-            setPeerConnection(peer);
+            // Establish WebRTC connection with partner
+            if (localStream && peerConnection) {
+              // Call the partner using their user ID
+              const mediaConn = callPeer(
+                data.partner.id.toString(),
+                localStream,
+                (newRemoteStream) => {
+                  // Update the remote stream with the received stream
+                  setRemoteStream(newRemoteStream);
+                }
+              );
+              
+              // Set up data connection for direct messaging
+              const dataConn = connectToPeer(
+                data.partner.id.toString(),
+                (messageData) => {
+                  if (messageData?.text) {
+                    // Add direct message to chat
+                    setMessages(prev => [...prev, {
+                      id: new Date().getTime().toString(),
+                      senderId: data.partner.id,
+                      text: messageData.text,
+                      timestamp: new Date()
+                    }]);
+                  }
+                }
+              );
+            }
             break;
             
           case "message":
@@ -213,11 +247,8 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
               }
             ]);
             
-            // Close peer connection
-            if (peerConnection) {
-              closePeerConnection(peerConnection);
-              setPeerConnection(null);
-            }
+            // Clean up peer connections
+            cleanupPeer();
             
             toast({
               title: "Partner disconnected",
@@ -250,11 +281,9 @@ export default function ChatRoom({ user, onLogout }: ChatRoomProps) {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (peerConnection) {
-        closePeerConnection(peerConnection);
-      }
+      cleanupPeer();
     };
-  }, [peerConnection]);
+  }, []);
   
   // Send message
   const sendMessage = (messageText: string) => {
