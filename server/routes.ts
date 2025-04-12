@@ -316,72 +316,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // HTML endpoint to verify email from link
+  // Email verification redirect endpoint
   app.get('/verify-email', async (req: Request, res: Response) => {
     try {
       const { token, email } = req.query;
       
-      if (!token || !email || typeof token !== 'string' || typeof email !== 'string') {
-        return res.status(400).send(`
-          <html>
-            <head><title>Verification Failed</title></head>
-            <body>
-              <h1>Verification Failed</h1>
-              <p>Invalid verification link. Please request a new verification email.</p>
-            </body>
-          </html>
-        `);
-      }
-      
-      // Verify token
-      const isValid = await storage.verifyUserEmail(email, token);
-      
-      if (!isValid) {
-        return res.status(400).send(`
-          <html>
-            <head><title>Verification Failed</title></head>
-            <body>
-              <h1>Verification Failed</h1>
-              <p>Invalid or expired verification token. Please request a new verification email.</p>
-            </body>
-          </html>
-        `);
-      }
-      
-      // Return success page
-      return res.status(200).send(`
-        <html>
-          <head>
-            <title>Email Verified</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; text-align: center; }
-              .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-              h1 { color: #4f46e5; }
-              .success-icon { font-size: 60px; color: #22c55e; margin-bottom: 20px; }
-              .btn { display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; 
-                     text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 20px; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="success-icon">✓</div>
-              <h1>Email Verified Successfully!</h1>
-              <p>Your email has been verified. You can now log in to Chatter Box and start chatting with university students!</p>
-              <a href="/" class="btn">Go to Login</a>
-            </div>
-          </body>
-        </html>
-      `);
+      // Redirect to frontend verification page with the token and email
+      return res.redirect(`/verify-email?token=${token}&email=${encodeURIComponent(String(email))}`);
     } catch (error) {
-      return res.status(500).send(`
-        <html>
-          <head><title>Verification Error</title></head>
-          <body>
-            <h1>Verification Error</h1>
-            <p>An error occurred during verification. Please try again later.</p>
-          </body>
-        </html>
-      `);
+      console.error('Error in verification redirect:', error);
+      return res.redirect(`/verify-email?error=1`);
     }
   });
 

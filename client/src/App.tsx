@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
 import ChatRoom from "@/pages/ChatRoom";
+import VerifyEmail from "@/pages/VerifyEmail";
 import { useEffect, useState } from "react";
 import ReportModal from "@/components/ReportModal";
 
@@ -26,7 +27,7 @@ function Router() {
 
   // Protected route logic
   useEffect(() => {
-    if (!user && location !== "/") {
+    if (!user && location !== "/" && !location.startsWith("/verify-email")) {
       window.location.href = "/";
     }
   }, [user, location]);
@@ -39,6 +40,7 @@ function Router() {
           setUser(null);
         }} /> : <Login onLogin={setUser} />
       } />
+      <Route path="/verify-email" component={VerifyEmail} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
