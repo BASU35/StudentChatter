@@ -92,6 +92,19 @@ export default function Login({ onLogin }: LoginProps) {
       });
       
       const userData = await res.json();
+      
+      // Check if email is verified
+      if (res.status === 403 && userData.verified === false) {
+        // Show verification alert
+        setUnverifiedEmail(values.email);
+        setShowVerificationAlert(true);
+        toast({
+          title: "Email not verified",
+          description: "Please verify your email address before logging in.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Save user data to localStorage if remember me is checked
       if (values.remember) {
@@ -110,6 +123,32 @@ export default function Login({ onLogin }: LoginProps) {
       toast({
         title: "Login failed",
         description: "Invalid email or password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to resend verification email
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail) return;
+    
+    setIsLoading(true);
+    try {
+      await apiRequest("POST", "/api/send-verification", {
+        email: unverifiedEmail,
+      });
+      
+      toast({
+        title: "Verification email sent",
+        description: "Please check your inbox for the verification link.",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Failed to send verification email",
+        description: "Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -136,12 +175,13 @@ export default function Login({ onLogin }: LoginProps) {
       
       const userData = await registerRes.json();
       
-      // Automatically log in the user after registration
-      onLogin(userData);
+      // Show verification message
+      setUnverifiedEmail(values.email);
+      setShowVerificationAlert(true);
       
       toast({
         title: "Registration successful",
-        description: "Welcome to Chatter Box!",
+        description: "A verification email has been sent to your email address. Please verify your email to continue.",
       });
     } catch (error) {
       console.error(error);
@@ -157,6 +197,39 @@ export default function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-gray-50">
+      {/* Email Verification Alert */}
+      {showVerificationAlert && (
+        <Alert className="mb-6 max-w-md">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          <div className="flex-1">
+            <AlertTitle>Email verification required</AlertTitle>
+            <AlertDescription className="mt-1">
+              <p className="mb-2">
+                Please check your email inbox ({unverifiedEmail}) and click the verification link to continue.
+              </p>
+              <div className="flex items-center mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleResendVerification}
+                  disabled={isLoading}
+                  className="mr-2"
+                >
+                  {isLoading ? "Sending..." : "Resend verification email"}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowVerificationAlert(false)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </AlertDescription>
+          </div>
+        </Alert>
+      )}
+      
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
         {/* Logo and Title */}
         <div className="text-center">

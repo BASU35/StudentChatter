@@ -28,7 +28,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Initialize email service
-  initEmailService();
+  (async () => {
+    await initEmailService();
+  })();
   
   // Create WebSocket server
   const wss = new WebSocketServer({ 

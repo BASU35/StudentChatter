@@ -6,43 +6,71 @@ import { storage } from './storage';
 let transporter: nodemailer.Transporter;
 
 // Initialize email service with credentials
-export function initEmailService() {
-  // Create a test account if we're in development and don't have real credentials
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[Email Service] Using test email account for development');
-    
-    // Create a transporter that captures emails instead of sending them
-    // This is useful for development/testing
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER || 'testuser',
-        pass: process.env.EMAIL_PASS || 'testpass'
-      }
-    });
-  } else {
-    // Use real email credentials in production
-    transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-  }
-  
-  // Verify connection configuration
-  transporter.verify((error) => {
-    if (error) {
-      console.error('[Email Service] Error connecting to mail server:', error);
+export async function initEmailService() {
+  try {
+    // Check if we have real credentials
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_HOST) {
+      console.log('[Email Service] Using configured email service');
+      
+      // Use real email credentials
+      transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: Number(process.env.EMAIL_PORT) || 587,
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
     } else {
-      console.log('[Email Service] Ready to send emails');
+      // Create a test account using ethereal.email for development
+      console.log('[Email Service] Creating test email account for development');
+      
+      try {
+        // Create a test account
+        const testAccount = await nodemailer.createTestAccount();
+        
+        // Create a transporter that captures emails and shows preview URLs
+        transporter = nodemailer.createTransport({
+          host: 'smtp.ethereal.email',
+          port: 587,
+          secure: false, // true for 465, false for other ports
+          auth: {
+            user: testAccount.user,
+            pass: testAccount.pass
+          }
+        });
+        
+        console.log('[Email Service] Test account created:', testAccount.user);
+      } catch (error) {
+        console.error('[Email Service] Error creating test account:', error);
+        
+        // Fallback to a dummy transporter that logs emails
+        transporter = {
+          sendMail: async (mailOptions) => {
+            console.log('[Email Service] Email would be sent in production:');
+            console.log('  From:', mailOptions.from);
+            console.log('  To:', mailOptions.to);
+            console.log('  Subject:', mailOptions.subject);
+            console.log('  Content:', mailOptions.html ? '[HTML Content]' : mailOptions.text);
+            return { messageId: 'test-' + Date.now() };
+          },
+          verify: (callback) => callback(null, true)
+        };
+      }
     }
-  });
+    
+    // Verify connection configuration
+    transporter.verify((error) => {
+      if (error) {
+        console.error('[Email Service] Error connecting to mail server:', error);
+      } else {
+        console.log('[Email Service] Ready to send emails');
+      }
+    });
+  } catch (error) {
+    console.error('[Email Service] Failed to initialize email service:', error);
+  }
 }
 
 // Generate a secure verification token
