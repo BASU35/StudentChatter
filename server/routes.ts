@@ -7,8 +7,11 @@ import {
   insertUserSchema, 
   loginSchema, 
   emailVerificationSchema, 
-  insertReportSchema 
+  insertReportSchema,
+  verifyTokenSchema,
+  resendVerificationSchema
 } from "@shared/schema";
+import { initEmailService, sendVerificationEmail } from "./emailService";
 import { z } from "zod";
 import * as crypto from "crypto";
 
@@ -23,6 +26,9 @@ const clients = new Map<number, SocketClient>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Initialize email service
+  initEmailService();
   
   // Create WebSocket server
   const wss = new WebSocketServer({ 
@@ -159,10 +165,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword
       });
       
+      // Send verification email
+      try {
+        const emailSent = await sendVerificationEmail(userData.email);
+        if (!emailSent) {
+          console.error('Failed to send verification email to:', userData.email);
+        }
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+        // Continue with registration even if email sending fails
+      }
+      
       // Don't return the password in the response
       const { password, ...userWithoutPassword } = user;
       
-      return res.status(201).json(userWithoutPassword);
+      return res.status(201).json({
+        ...userWithoutPassword,
+        message: 'Registration successful. Please check your email to verify your account.'
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: 'Invalid user data', errors: error.errors });
@@ -185,6 +205,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = crypto.createHash('sha256').update(loginData.password).digest('hex');
       if (user.password !== hashedPassword) {
         return res.status(400).json({ message: 'Invalid email or password' });
+      }
+      
+      // Check if email is verified
+      if (!user.isVerified) {
+        return res.status(403).json({ 
+          message: 'Email not verified. Please check your inbox for the verification link or request a new one.',
+          verified: false 
+        });
       }
       
       // Update user status to online
@@ -234,6 +262,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Verification Routes
+  app.post('/api/send-verification', async (req: Request, res: Response) => {
+    try {
+      const { email } = resendVerificationSchema.parse(req.body);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Check if user is already verified
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'Email already verified' });
+      }
+      
+      // Send verification email
+      const emailSent = await sendVerificationEmail(email);
+      
+      if (!emailSent) {
+        return res.status(500).json({ message: 'Failed to send verification email' });
+      }
+      
+      return res.status(200).json({ message: 'Verification email sent' });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid email', errors: error.errors });
+      }
+      return res.status(500).json({ message: 'Server error sending verification email' });
+    }
+  });
+  
+  app.post('/api/verify-token', async (req: Request, res: Response) => {
+    try {
+      const { email, token } = verifyTokenSchema.parse(req.body);
+      
+      // Verify token
+      const isValid = await storage.verifyUserEmail(email, token);
+      
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid or expired verification token' });
+      }
+      
+      return res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid verification data', errors: error.errors });
+      }
+      return res.status(500).json({ message: 'Server error verifying email' });
+    }
+  });
+  
+  // HTML endpoint to verify email from link
+  app.get('/verify-email', async (req: Request, res: Response) => {
+    try {
+      const { token, email } = req.query;
+      
+      if (!token || !email || typeof token !== 'string' || typeof email !== 'string') {
+        return res.status(400).send(`
+          <html>
+            <head><title>Verification Failed</title></head>
+            <body>
+              <h1>Verification Failed</h1>
+              <p>Invalid verification link. Please request a new verification email.</p>
+            </body>
+          </html>
+        `);
+      }
+      
+      // Verify token
+      const isValid = await storage.verifyUserEmail(email, token);
+      
+      if (!isValid) {
+        return res.status(400).send(`
+          <html>
+            <head><title>Verification Failed</title></head>
+            <body>
+              <h1>Verification Failed</h1>
+              <p>Invalid or expired verification token. Please request a new verification email.</p>
+            </body>
+          </html>
+        `);
+      }
+      
+      // Return success page
+      return res.status(200).send(`
+        <html>
+          <head>
+            <title>Email Verified</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; text-align: center; }
+              .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+              h1 { color: #4f46e5; }
+              .success-icon { font-size: 60px; color: #22c55e; margin-bottom: 20px; }
+              .btn { display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; 
+                     text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✓</div>
+              <h1>Email Verified Successfully!</h1>
+              <p>Your email has been verified. You can now log in to Chatter Box and start chatting with university students!</p>
+              <a href="/" class="btn">Go to Login</a>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      return res.status(500).send(`
+        <html>
+          <head><title>Verification Error</title></head>
+          <body>
+            <h1>Verification Error</h1>
+            <p>An error occurred during verification. Please try again later.</p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   // User Profile Route
   app.get('/api/user/:id', async (req: Request, res: Response) => {
     try {
@@ -267,6 +416,15 @@ async function handleAuth(ws: SocketClient, userId: number) {
     ws.send(JSON.stringify({
       type: 'error',
       message: 'Authentication failed: User not found'
+    }));
+    return;
+  }
+  
+  // Check if email is verified
+  if (!user.isVerified) {
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Email not verified. Please verify your email before using the chat.'
     }));
     return;
   }

@@ -77,6 +77,9 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id, 
       isOnline: false,
+      isVerified: false,
+      verificationToken: null,
+      tokenExpiry: null,
       lastActive: new Date()
     };
     this.users.set(id, user);

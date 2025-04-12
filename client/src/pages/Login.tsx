@@ -18,7 +18,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Shield, Users } from "lucide-react";
+import { MessageCircle, Shield, Users, Mail, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Form schemas
 const loginSchema = z.object({
@@ -56,6 +57,8 @@ export default function Login({ onLogin }: LoginProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [showVerificationAlert, setShowVerificationAlert] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
