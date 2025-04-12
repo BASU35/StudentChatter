@@ -10,6 +10,9 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   university: text("university"),
   isOnline: boolean("is_online").default(false),
+  isVerified: boolean("is_verified").default(false),
+  verificationToken: text("verification_token"),
+  tokenExpiry: timestamp("token_expiry"),
   lastActive: timestamp("last_active").defaultNow(),
 });
 
@@ -67,6 +70,15 @@ export const emailVerificationSchema = z.object({
     const eduDomains = ['.edu', '.ac.uk', '.edu.au', '.ac.nz', '.edu.sg', '.ac.za', 'dtu.ac.in'];
     return eduDomains.some(domain => email.toLowerCase().endsWith(domain));
   }, { message: 'Must be a valid educational email address' })
+});
+
+export const verifyTokenSchema = z.object({
+  email: z.string().email(),
+  token: z.string().min(20)
+});
+
+export const resendVerificationSchema = z.object({
+  email: z.string().email()
 });
 
 // Types

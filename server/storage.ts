@@ -12,6 +12,13 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserOnlineStatus(id: number, isOnline: boolean): Promise<void>;
   
+  // Email verification operations
+  setVerificationToken(email: string, token: string, expiryHours: number): Promise<void>;
+  verifyUserEmail(email: string, token: string): Promise<boolean>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
+  isTokenExpired(userId: number): Promise<boolean>;
+  markUserAsVerified(userId: number): Promise<void>;
+  
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
   getReports(): Promise<Report[]>;
@@ -82,6 +89,78 @@ export class MemStorage implements IStorage {
       user.isOnline = isOnline;
       user.lastActive = new Date();
       this.users.set(id, user);
+    }
+  }
+  
+  // Email verification operations
+  async setVerificationToken(email: string, token: string, expiryHours: number): Promise<void> {
+    const user = await this.getUserByEmail(email);
+    if (user) {
+      // Calculate expiry date (current time + expiryHours)
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + expiryHours);
+      
+      // Update user with verification token and expiry
+      user.verificationToken = token;
+      user.tokenExpiry = expiry;
+      user.isVerified = false;
+      
+      this.users.set(user.id, user);
+    }
+  }
+  
+  async verifyUserEmail(email: string, token: string): Promise<boolean> {
+    const user = await this.getUserByEmail(email);
+    
+    if (!user) {
+      return false; // User not found
+    }
+    
+    if (user.isVerified) {
+      return true; // Already verified
+    }
+    
+    if (user.verificationToken !== token) {
+      return false; // Invalid token
+    }
+    
+    if (user.tokenExpiry && new Date() > user.tokenExpiry) {
+      return false; // Token expired
+    }
+    
+    // Mark user as verified
+    user.isVerified = true;
+    user.verificationToken = null;
+    user.tokenExpiry = null;
+    this.users.set(user.id, user);
+    
+    return true;
+  }
+  
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.verificationToken === token
+    );
+  }
+  
+  async isTokenExpired(userId: number): Promise<boolean> {
+    const user = this.users.get(userId);
+    
+    if (!user || !user.tokenExpiry) {
+      return true; // Consider no token as expired
+    }
+    
+    return new Date() > user.tokenExpiry;
+  }
+  
+  async markUserAsVerified(userId: number): Promise<void> {
+    const user = this.users.get(userId);
+    
+    if (user) {
+      user.isVerified = true;
+      user.verificationToken = null;
+      user.tokenExpiry = null;
+      this.users.set(userId, user);
     }
   }
 
