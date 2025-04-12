@@ -153,7 +153,7 @@ export default function Login({ onLogin }: LoginProps) {
   const onRegisterSubmit = async (values: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      // First verify the email is a valid educational email
+      // First verify the email
       const verifyRes = await apiRequest("POST", "/api/verify-email", {
         email: values.email,
       });
@@ -232,7 +232,7 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">Chatter Box</h2>
-          <p className="mt-2 text-sm text-gray-600">Connect with university students worldwide</p>
+          <p className="mt-2 text-sm text-gray-600">Connect with people worldwide</p>
         </div>
         
         {/* Login/Register Tabs */}
@@ -250,16 +250,16 @@ export default function Login({ onLogin }: LoginProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>University Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="your.name@university.edu" 
+                          placeholder="your.name@example.com" 
                           {...field} 
                           type="email"
                           autoComplete="email"
                         />
                       </FormControl>
-                      <p className="text-xs text-gray-500">Only university email addresses are accepted (.edu domains)</p>
+                      <p className="text-xs text-gray-500">Enter your email address to login</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -322,7 +322,7 @@ export default function Login({ onLogin }: LoginProps) {
                       className="p-0 h-auto font-medium text-primary-600"
                       onClick={() => setActiveTab("register")}
                     >
-                      Sign up with your university email
+                      Sign up
                     </Button>
                   </p>
                 </div>
@@ -356,16 +356,16 @@ export default function Login({ onLogin }: LoginProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>University Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="your.name@university.edu" 
+                          placeholder="your.name@example.com" 
                           {...field} 
                           type="email"
                           autoComplete="email"
                         />
                       </FormControl>
-                      <p className="text-xs text-gray-500">Only university email addresses are accepted (.edu domains)</p>
+                      <p className="text-xs text-gray-500">We'll send a verification link to this email</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -452,7 +452,7 @@ export default function Login({ onLogin }: LoginProps) {
       <div className="mt-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h3 className="text-2xl font-bold text-gray-900">Why Chatter Box?</h3>
-          <p className="mt-2 text-gray-600">A safe space made exclusively for university students</p>
+          <p className="mt-2 text-gray-600">A safe space to connect with people</p>
         </div>
         
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
@@ -462,17 +462,7 @@ export default function Login({ onLogin }: LoginProps) {
                 <Shield className="h-6 w-6 text-primary-600" />
               </div>
               <h4 className="mt-4 text-lg font-medium text-gray-900">Verified Community</h4>
-              <p className="mt-2 text-sm text-gray-500">Connect only with verified students from universities worldwide</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100">
-                <MessageCircle className="h-6 w-6 text-primary-600" />
-              </div>
-              <h4 className="mt-4 text-lg font-medium text-gray-900">Instant Connections</h4>
-              <p className="mt-2 text-sm text-gray-500">Meet new friends, study partners, or just chat with fellow students</p>
+              <p className="mt-2 text-sm text-gray-500">Connect only with verified users from around the world</p>
             </CardContent>
           </Card>
           
@@ -481,20 +471,29 @@ export default function Login({ onLogin }: LoginProps) {
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100">
                 <Users className="h-6 w-6 text-primary-600" />
               </div>
-              <h4 className="mt-4 text-lg font-medium text-gray-900">Safe Environment</h4>
-              <p className="mt-2 text-sm text-gray-500">Enhanced moderation and reporting systems to ensure a respectful space</p>
+              <h4 className="mt-4 text-lg font-medium text-gray-900">Random Matching</h4>
+              <p className="mt-2 text-sm text-gray-500">Discover new people with our random matching system</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="text-center">
+            <CardContent className="pt-6">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100">
+                <Mail className="h-6 w-6 text-primary-600" />
+              </div>
+              <h4 className="mt-4 text-lg font-medium text-gray-900">No Spam</h4>
+              <p className="mt-2 text-sm text-gray-500">We verify all users via email to prevent fake accounts and spam</p>
             </CardContent>
           </Card>
         </div>
       </div>
       
-      <footer className="mt-16 w-full">
-        <div className="max-w-7xl mx-auto py-6 px-4 overflow-hidden sm:px-6 lg:px-8">
-          <p className="text-center text-base text-gray-400">
-            &copy; {new Date().getFullYear()} Chatter Box. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      {/* Footer */}
+      <div className="mt-12 text-center">
+        <p className="text-sm text-gray-500">
+          &copy; {new Date().getFullYear()} Chatter Box. All rights reserved.
+        </p>
+      </div>
     </div>
   );
 }
